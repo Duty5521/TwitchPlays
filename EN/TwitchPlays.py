@@ -1,7 +1,7 @@
-# Salut ! Duty qui parle ! Ce programme qui laisse jouer Twitch (et YouTube si besoin) est basé sur celui de DougDoug que j'ai traduit et adapté selon mes besoins !
-# Il n'est probablement pas le plus optimisé et le plus simple à comprendre/mettre en place, mais il marche très bien.
-# Je recommenderais vraiment de ne changer aucune valeur (à part celles qui sont faites pour), ça marche très bien avec celles actuelles.
-# Sur ce, bon live et bonne chance au chat !
+# Hey! Duty here! This program that lets Twitch or YouTube play is based on DougDoug's one that I adapted according to my needs!
+# It's probably not the most optimimal and the easiest to understand or put in place, but it works very well.
+# I'd recommend not to modify anything (apart from the variable that are made for it), it works very good with the actual ones.
+# On that note, have a good live and good luck to the chat!
 
 
 import requests
@@ -17,13 +17,13 @@ from sys import exit
 import pyautogui
 
 
-########################## CONNEXION ##########################
-# Note de DougDoug: 
-# Ceci est la partie du code qui connecte à Twitch/YouTube et regarde si il y a des nouveaux messages.
-# Il n'y a normalement besoin de rien modifier dans cette partie, on peut l'utiliser comme c'est.
-# Cette partie du code est basée sur le tutoriel "Twitch Plays" de Wituz, mis à jour (c'est Duty qui parle dans cette parenthèse - pour Python 3.9.XX à la base mais je l'ai encore mis à jour pour Python 3.13.XX).
-# http://www.wituz.com/make-your-own-twitch-plays-stream.html (ce lien est mort).
-# Mis à jour pour YouTube par DDarknut, avec de l'aide de Ottomated.
+########################## CONNECTION ##########################
+# DougDoug note:
+# This is the part of the code that connects to Twitch or YouTube and checks for new messages.
+# You should not need to modify anything in this part, just use it as it is.
+# This code is based on Wituz's "Twitch Plays" tutorial, updated (Duty here - originally for Python 3.9.XX but I updated it for 3.13.XX).
+# http://www.wituz.com/make-your-own-twitch-plays-stream.html (this link is dead).
+# Updated for YouTube by DDarknut, with help from Ottomated.
 
 
 MAX_TIME_TO_WAIT_FOR_LOGIN = 3
@@ -44,31 +44,31 @@ class Twitch:
         self.login_ok = False
         self.channel = channel
 
-        # Compiler certaines expressions courantes.
+        # Compile regular expressions.
         self.re_prog = re.compile(b'^(?::(?:([^ !\r\n]+)![^ \r\n]*|[^ \r\n]*) )?([^ \r\n]+)(?: ([^:\r\n]*))?(?: :([^\r\n]*))?\r\n', re.MULTILINE)
 
-        # Création du point d'accès.
-        print('Connexion à Twitch...')
+        # Create socket.
+        print('Connecting to Twitch...')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        # Essai pour se connecter au point d'accès.
+        # Attempt to connect socket.
         self.sock.connect(('irc.chat.twitch.tv', 6667))
 
-        # Se connecter anonymement.
+        # Log in anonymously.
         user = 'justinfan%i' % random.randint(10000, 99999)
-        print('Connecté à Twitch. Connexion anonyme...')
+        print('Connected to Twitch. Logging in anonymously...')
         self.sock.send(('PASS asdf\r\nNICK %s\r\n' % user).encode())
 
         self.sock.settimeout(1.0/60.0)
 
         self.login_timestamp = time.time()
 
-    # Essai pour se reconnecter après un délai.
+    # Attempt to reconnect after a delay.
     def reconnect(self, delay):
         time.sleep(delay)
         self.twitch_connect(self.channel)
 
-    # Renvoie une liste de messages irc reçus.
+    # Returns a list of received irc messages.
     def receive_and_parse_data(self):
         buffer = b''
         while True:
@@ -79,26 +79,26 @@ class Twitch:
                 break
             # except OSError as e:
             #     if e.winerror == 10035:
-            #         # Cette "erreur" est attendue - elle est reçue si le temps mort est mis à zéro et qu'il n'y a aucune donnée sur le point d'accès.
+            #         # This "error" is expected - it's received if timeout is set to zero, and there is no data to read on the socket.
             #         break
             except Exception as e:
-                print('Erreur de connexion innatendue. Reconnexion dans une seconde...', e)
+                print('Unexpected connection error. Reconnecting in a second...', e)
                 self.reconnect(1)
                 return []
             if not received:
-                print('Connexion fermée par Twitch. Reconnexion dans 5 secondes...')
+                print('Connection closed by Twitch. Reconnecting in 5 seconds...')
                 self.reconnect(5)
                 return []
             buffer += received
 
         if buffer:
-            # Ajouter un élément de donnée non analysée des itérations précédentes.
+            # Prepend unparsed data from previous iterations.
             if self.partial:
                 buffer = self.partial + buffer
                 self.partial = 0
 
 
-            # Analyser les messages irc.
+            # Parse irc messages.
             res = []
             matches = list(self.re_prog.finditer(buffer))
             for match in matches:
@@ -109,7 +109,7 @@ class Twitch:
                     'trailing': (match.group(4) or b'').decode(errors='replace'),
                 })
 
-            # Sauvegarder des données qui n'ont pas pu être analysées pour la prochaine itération.
+            # Save data that couldn't be parsed for the next iteration.
                 self.partial + buffer == buffer
             else:
                 end = matches[-1].end()
@@ -117,8 +117,8 @@ class Twitch:
                     self.partial = buffer[end:]
 
                 if matches[0].start() != 0:
-                    # Si on en est ici, un message a peut-être été raté.
-                    print('Un message a peut-être été oublié.')
+                    # If we get here, a message has maybe been forgotten.
+                    print('A message has maybe been forgotten.')
 
             return res
 
@@ -136,12 +136,12 @@ class Twitch:
             elif cmd == 'PING':
                 self.sock.send(b'PONG :tmi.twitch.tv\r\n')
             elif cmd == '001':
-                print('Connexion réussie. En train de rejoindre la chaîne ' + self.channel + '.')
+                print('Successfully logged in. Joining channel ' + self.channel + '.')
                 self.sock.send(('JOIN #%s\r\n' % self.channel).encode())
                 self.login_ok = True
             elif cmd == 'JOIN':
-                print('Chaîne ' + self.channel + ' rejointe avec succès.')
-                # Regarde si la fenêtre précisée en bas existe, si non imprime la liste des fenêtres.
+                print('Channel ' + self.channel + ' joined successfully.')
+                # Looks if the window specified below exists, if not prints the list of all the opened windows.
                 def window_exists(WINDOW_TITLE):
                     try:
                         app = Application(backend="uia").connect(title=WINDOW_TITLE)
@@ -150,13 +150,13 @@ class Twitch:
                     except ElementNotFoundError:
                         return False
                     except Exception as e:
-                        print(f"Erreur inattendue : {e}")
+                        print(f"Unexpected error: {e}")
                         return False
                 if not window_exists(WINDOW_TITLE):
-                    print('Fenêtre avec le titre "' + WINDOW_TITLE + '" non trouvée. Liste de toutes les fenêtres : ' + str([w.window_text() for w in Desktop(backend="uia").windows()]) + '.')
+                    print('Window with title "' + WINDOW_TITLE + '" not found. List of all windows: ' + str([w.window_text() for w in Desktop(backend="uia").windows()]) + '.')
                     exit()
             elif cmd == 'NOTICE':
-                print('Annonce du serveur :', irc_message['params'], irc_message['trailing'], ".")
+                print('Server notice:', irc_message['params'], irc_message['trailing'], ".")
             elif cmd == '002': continue
             elif cmd == '003': continue
             elif cmd == '004': continue
@@ -166,18 +166,18 @@ class Twitch:
             elif cmd == '353': continue
             elif cmd == '366': continue
             else:
-                print('Message irc non géré : ', irc_message, ".")
+                print('Unhandled irc message: ', irc_message, ".")
 
         if not self.login_ok:
-            # Le programme est toujours en train d'attendre le message de connexion initial. Si il attend plus longtemps que ce qu'il devrait, il essaiera de se reconnecter.
+            # The program is still waiting for the initial login message. If it's waited longer than it should, try to reconnect.
             if time.time() - self.login_timestamp > MAX_TIME_TO_WAIT_FOR_LOGIN:
-                print('Pas de réponse de Twitch. Reconnexion...')
+                print('No response from Twitch. Reconnecting...')
                 self.reconnect(0)
                 return []
 
         return privmsgs
 
-# Merci à Ottomated d'avoir aidé avec le côté YouTube du programme !
+# Thanks to Ottomated for helping with the YouTube side of the code!
 class YouTube:
     session = None
     config = {}
@@ -200,9 +200,9 @@ class YouTube:
     def reconnect(self, delay):
         if self.fetch_job and self.fetch_job.running():
             if not self.fetch_job.cancel():
-                print("En train d'attendre la fin de la récupération...")
+                print("Waiting for fetch job to finish...")
                 self.fetch_job.result()
-        print(f"Nouvelle tentative dans {delay}...")
+        print(f"Retrying in {delay}...")
         if self.session: self.session.close()
         self.session = None
         self.config = {}
@@ -213,19 +213,19 @@ class YouTube:
         self.youtube_connect(self.channel_id, self.stream_url)
 
     def youtube_connect(self, channel_id, stream_url=None):
-        print("Connexion à YouTube...")
+        print("Connecting to YouTube...")
 
         self.channel_id = channel_id
         self.stream_url = stream_url
 
-        # Créer une séance http du client.
+        # Create http client session.
         self.session = requests.Session()
-        # Spoof l'agent utilisateur pour que YouTube pense que c'est un navigateur.
+        # Spoof user agent so YouTube thinks it's a browser.
         self.session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36'
-        # Ajouter des cookies de consentement pour contourner la page de consentement de Google
+        # Add consent cookie to bypass Google's consent page.
         requests.utils.add_dict_to_cookiejar(self.session.cookies, {'CONSENT': 'YES+'})
 
-        # Se connecter en utilisant "stream_url" si fourni, sinon utiliser "channel_id".
+        # Connect using stream_url "stream_url" if provided, otherwise use "channel_id".
         if stream_url is not None:
             live_url = self.stream_url
         else:
@@ -237,58 +237,58 @@ class YouTube:
             res = self.session.get(live_url)
         if not res.ok:
             if stream_url is not None:
-                print(f"Impossible de charger l'URL du live ({res.status_code} {res.reason}). L'URL de la chaîne ({self.stream_url}) est-il correct ?")
+                print(f"Couldn't load the stream URL ({res.status_code} {res.reason}). Is the stream URL ({self.stream_url}) correct?")
             else:
-                print(f"Impossible de charger la page du live ({res.status_code} {res.reason}). L'ID de la chaîne ({self.channel_id}) est-elle correcte ?")
+                print(f"Couldn't load livestream page ({res.status_code} {res.reason}). Is the channel ID ({self.channel_id}) correct?")
             time.sleep(5)
             exit(1)
         livestream_page = res.text
 
-        # Trouver les données initiales dans la page du live.
+        # Find initial data in the livestream page.
         matches = list(self.re_initial_data.finditer(livestream_page))
         if len(matches) == 0:
-            print("Impossible de trouver les données initiales dans la page du live.")
+            print("Couldn't find initial data in the livestream page.")
             time.sleep(5)
             exit(1)
         initial_data = json.loads(matches[0].group(1))
 
-        # Prendre le token de continuation pour l'iframe du chat du live.
+        # Get continuation token for the live chat iframe.
         iframe_continuation = None
         try:
             iframe_continuation = initial_data['contents']['twoColumnWatchNextResults']['conversationBar']['liveChatRenderer']['header']['liveChatHeaderRenderer']['viewSelector']['sortFilterSubMenuRenderer']['subMenuItems'][1]['continuation']['reloadContinuationData']['continuation']
         except Exception as e:
-            # Cette égalité est uniquement là dans le but d'enlever une erreur qui n'est pas sensée exister, ça n'a aucun intérêt sinon.
+            # This equality is only there for the purpose of removing an error that is not supposed to exist, it has no purpose otherwise.
             e = e
-            print(f"Impossible de trouver la page de chat du live. La chaîne est-elle hors-live ? URL : {live_url}.")
+            print(f"Couldn't find the livestream chat. Is the channel not live? URL: {live_url}.")
             time.sleep(5)
             exit(1)
             
 
-        # Analyse la page de chat du live.
+        # Fetch live chat page.
         res = self.session.get(f'https://youtube.com/live_chat?continuation={iframe_continuation}')
         if not res.ok:
-            print(f"Impossible de charger la page du live ({res.status_code} {res.reason}).")
+            print(f"Couldn't load live chat page ({res.status_code} {res.reason}).")
             time.sleep(5)
             exit(1)
         live_chat_page = res.text
 
-        # Trouver les données initiales dans la page de chat du live.
+        # Find initial data in live chat page.
         matches = list(self.re_initial_data.finditer(live_chat_page))
         if len(matches) == 0:
-            print("Impossible de trouver les données initiales dans la page de chat du live.")
+            print("Couldn't find initial data in live chat page.")
             time.sleep(5)
             exit(1)
         initial_data = json.loads(matches[0].group(1))
 
-        # Trouver les données de configuration.
+        # Find configuration data.
         matches = list(self.re_config.finditer(live_chat_page))
         if len(matches) == 0:
-            print("Impossible de trouver les données de configuration dans la page de chat du live.")
+            print("Couldn't find configuration data in live chat page.")
             time.sleep(5)
             exit(1)
         self.config = json.loads(matches[0].group(1))
 
-        # Créer un "payload object" pour émettre de demandes de chat.
+        # Create a payload object for making live chat requests.
         token = self.get_continuation_token(initial_data)
         self.payload = {
             "context": self.config['INNERTUBE_CONTEXT'],
@@ -297,15 +297,15 @@ class YouTube:
                 "isDocumentHidden": False
             },
         }
-        print("Connecté.")
+        print("Connected.")
 
     def fetch_messages(self):
         payload_bytes = bytes(json.dumps(self.payload), "utf8")
         res = self.session.post(f"https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key={self.config['INNERTUBE_API_KEY']}&prettyPrint=false", payload_bytes)
         if not res.ok:
-            print(f"N'a pas réussi à analyser les messages ({res.status_code} {res.reason}).")
-            print("Corps :", res.text, ".")
-            print("Payload :", payload_bytes, ".")
+            print(f"Failed to fetch messages ({res.status_code} {res.reason}).")
+            print("Body:", res.text, ".")
+            print("Payload:", payload_bytes, ".")
             self.session.close()
             self.session = None
             return []
@@ -361,38 +361,38 @@ class YouTube:
 
 
 
-# Remplace ça par le titre de la fenêtre que tu veux utiliser (je recommande d'ouvrir un bloc-notes vide si tu veux tester).
+# Replace this with the title of the window you want to use (I'd recommand opening an empty Notepad if you want to test).
 WINDOW_TITLE = "WINDOW_TITLE"
 
-# Si tu ne souhaites pas que les commandes puissent être exécutées plusieurs fois, met ça sur "False".
+# If you don't want commands to be able to be executed multiple times, set this to "False".
 COMMANDS_MULTIPLE_TIMES = True
 
-# Remplace ça par ton pseudonyme Twitch, tout en minuscule.
+# Replace this with your Twitch username. Must be all lowercase.
 TWITCH_CHANNEL = 'TWITCH_CHANNEL' 
 
-# Si tu stream sur YouTube, met ça sur "False".
+# If you're streaming on Youtube, set this to "False".
 STREAMING_ON_TWITCH = True
 
-# Si tu stream sur YouTube, remplace ça par ton ID de chaîne.
-# Trouve ça en suivant ce chemin : Photo de profil YouTube -> Paramètres -> Paramètres avancés.
+# If you're streaming on Youtube, set this to your channel ID.
+# Find it by following this path: YouTube profile picture -> Settings -> Advanced settings.
 YOUTUBE_CHANNEL_ID = "YOUTUBE_CHANNEL_ID" 
 
-# Si tu utilises un stream en non répertorié pour tester sur YouTube, remplace "None" en dessous avec l'URL de ton stream entre guillemets. Sinon laisse ça à "None".
+# If you're using an unlisted stream to test on Youtube, replace "None" below with your stream's URL in quotes. Otherwise leave that to "None".
 YOUTUBE_STREAM_URL = None
 
-# "MESSAGE_RATE" contrôle à quelle vitesse les messages du chat Twitch sont traités. C'est le nombre de secondes que ça va prendre pour prendre en charge tous les messages dans la file.
-# C'est utilisé parce que Twitch livre les messages en gros groupes, plutôt qu'un seul à la fois. Donc on traite les messages sur la durée de "MESSAGE_RATE", plutôt que d'en traiter l'intégralité en une fois.
-# Un plus petit nombre veut dire qu'on prend en charge les messages dans la file plus vite mais on va manquer de messages plus vite et l'activité peut "stagner" en attendant des nouveaux messages. 
-# Un plus grand nombre veut dire qu'on prend en charge les messages dans la file plus lentement, et les messages sont étalés plus uniformément, mais le délai de la perspecive des spectateurs est plus grande.
-# Mettre ça à 0 désactive la file et prend en charge tous les messages immédiatement. Par contre, l'attente avant d'autres messages sera plus visible.
+# "MESSAGE_RATE" controls how fast incoming Twitch chat messages are processed. It's the number of seconds it will take to handle all messages in the queue.
+# This is used because Twitch delivers messages in "batches", rather than one at a time. So we process the messages over "MESSAGE_RATE" duration, rather than processing the entire batch at once.
+# A smaller number means we go through the message queue faster, but we will run out of messages faster and activity might "stagnate" while waiting for a new batch. 
+# A higher number means we go through the queue slower and messages are more evenly spread out, but delay from the viewers' perspective is higher.
+# Setting this to 0 disables the queue and handles all messages immediately. However, then the wait before another batch of messages is more noticeable.
 MESSAGE_RATE = 0.5
 
-# "MAX_QUEUE_LENGTH" limite le nombre de commandes qui vont être traitées dans un groupe de messages donné.
-# Ex. Si tu as un groupe de 50 messages, tu peux choisir de seulement traiter les 10 premiers et ignorer les autres.
-# C'est utile pour les jeux où trop de commandes à la fois peuvent vraiment entraver le gameplay.
-# Mettre ça à ~50 est bien quand c'est le chaos total, ~5-10 est bien pour les platformers 2D.
+# "MAX_QUEUE_LENGTH" limits the number of commands that will be processed in a given "batch" of messages.
+# e.g. If you get a batch of 50 messages, you can choose to only process the first 10 of them and ignore the others.
+# This is helpful for games where too many inputs at once can really hinder the gameplay.
+# Setting this to ~50 is good when it's the total chaos, ~5-10 is good for 2D platformers.
 MAX_QUEUE_LENGTH = 20
-MAX_WORKERS = 100 # Nombre maximum de fils que l'on peut suivre à la fois.
+MAX_WORKERS = 100 # Maximum number of threads that can be processed at a time.
 
 last_time = time.time()
 message_queue = []
@@ -411,13 +411,13 @@ def handle_message(message):
         msg = message['message'].lower()
         username = message['username'].lower()
 
-        print(username + " : " + msg)            
+        print(username + ": " + msg)            
 
-        # Maintenant, on a le message.
+        # Now, we've got the message.
         
-        # Trouver le nombre de fois qu'il faut exécuter la commande.
-        # C'est actuellement limité entre 1 et 5, mais en ajoutant les chiffre de 6 à 9 on peut en mettre plus.
-        # Par contre cela ne marche pas avec les nombres à deux chiffres ou plus.
+        # Find the number of time that the command needs to be executed.
+        # It's actually limited between 1 and 5, but by adding the digits from 6 to 9, you can put more.
+        # On the other hand, this doesn't work with numbers with two digits or more.
         if COMMANDS_MULTIPLE_TIMES:
             if msg[-1] in "12345":
                 number_of_times = int(msg[-1])
@@ -427,70 +427,70 @@ def handle_message(message):
         else:
             number_of_times = 1
         
-        # Si le message est une commande, alors l'exécuter le nombre de fois voulu.
-        # Cette partie est personnalisable.
-        # Chaque 'if msg == "[COMMANDE]"' permet au programme de vérifier si le message est une commande. Chaque commande doit être absolument mise dedans, sinon elle ne sera pas exécutée.
-        # Il suffit de remplacer [COMMANDE] et [TOUCHE] par la commande et la touche souhaitées.
-        if msg == "[COMMANDE]":
-            print("Le message est une commande.")      
-            # Si la commande ne correspond pas à la touche qu'il faut appuyer, il faut faire en sorte que ça devienne le cas.
-            if msg == "[COMMANDE]":
-                msg = "[TOUCHE]"
+        # If the message is a command, then execute it the desired number of times.
+        # Every part is customizable.
+        # Every 'if msg == "[COMMAND]"' allows the program to check if the message is a command. Every command must be put in it, otherwise it will not be executed.
+        # Just replace [COMMAND] and [KEY] by the desired command and key.
+        if msg == "[COMMAND]":
+            print("The message is a command.")      
+            # If the command doesn't correspond to the key that needs to be pressed, we need to make sure it becomes the case.
+            if msg == "[COMMAND]":
+                msg = "[KEY]"
                 
-            # Se connecter à une application.
+            # Connect to an app.
             app = Application(backend="uia").connect(title=WINDOW_TITLE)
                 
-            # Trouver la bonne fenêtre.
+            # Find the correct window.
             window = app.window(title=WINDOW_TITLE)
                
-            # Mettre la fenêtre en focus.
+            # Put the window in focus.
             window.set_focus()
             
-            # Cette partie est personnalisable aussi, elle gère si il y a 2 touches (ou plus) à appuyer à la fois.
-            # Il suffit de remplacer [COMMANDE], [TOUCHE1] et [TOUCHE2] par la commande et les touches souhaitées (et en rajouter d'autres si il y en a).
-            if msg == "[COMMANDE]":
+            # This part is customizable too, it manages if there are 2 keys (or more) to press at once.
+            # Just replace [COMMAND], [KEY1] and [KEY2] by the desired command and keys (and add others if there are any).
+            if msg == "[COMMAND]":
                 for i in range(number_of_times):
-                    pyautogui.keyDown("[TOUCHE1]")
-                    pyautogui.keyDown("[TOUCHE2]")
+                    pyautogui.keyDown("[KEY1]")
+                    pyautogui.keyDown("[KEY2]")
                     time.sleep(0.5)
-                    pyautogui.keyUp("[TOUCHE2]")
-                    pyautogui.keyUp("[TOUCHE1]")
-                print('Touches [TOUCHE1] et [TOUCHE2] envoyées ' + str(number_of_times) + ' fois à la fenêtre "' + WINDOW_TITLE + '".')
+                    pyautogui.keyUp("[KEY2]")
+                    pyautogui.keyUp("[KEY1]")
+                print('Keys [KEY1] and [KEY2] sent ' + str(number_of_times) + ' times to the window "' + WINDOW_TITLE + '".')
                     
             else:
-                # Envoyer la commande à la fenêtre.          
+                # Send the command to the window.          
                 pyautogui.keyDown(msg)
                 time.sleep(0.25 * number_of_times)
                 pyautogui.keyUp(msg)
-                print('Touche ' + msg + ' envoyée ' + str(number_of_times) + ' fois à la fenêtre "' + WINDOW_TITLE + '".')
-            print("Commande exécutée.")
+                print('Key ' + msg + ' sent ' + str(number_of_times) + ' times to the window "' + WINDOW_TITLE + '".')
+            print("Command executed.")
             
         else:
-            print("Le message n'est pas une commande.")
+            print("The message is not a command.")
             
     except Exception as e:
-        print("Exception rencontrée : " + str(e) + ".")
+        print("Encountered exception: " + str(e) + ".")
 
 while True:
     
     active_tasks = [t for t in active_tasks if not t.done()]
 
-    # Regarder si il y a des nouveaux messages.
+    # Check for new messages.
     new_messages = t.twitch_receive_messages();
     if new_messages:
-        message_queue += new_messages; # Les nouveaux messages sont ajoutés à la fin de la queue.
-        message_queue = message_queue[-MAX_QUEUE_LENGTH:] # Raccourcir la queue à uniquement les X messages les plus récents.
+        message_queue += new_messages; # New messages are added to the back of the queue.
+        message_queue = message_queue[-MAX_QUEUE_LENGTH:] # Shorten the queue to only the most recent X messages.
 
     messages_to_handle = []
     if not message_queue:
-        # Pas de message dans la file.
+        # No messages in the queue.
         last_time = time.time()
     else:
-        # Déterminer combien de message devraient être gérés en même temps.
+        # Determine how many messages should be handled at the same time.
         r = 1 if MESSAGE_RATE == 0 else (time.time() - last_time) / MESSAGE_RATE
         n = int(r * len(message_queue))
         if n > 0:
-            # Mettre les messages qui doivent l'être au début de la file.
+            # Pop the messages we want off the front of the queue.
             messages_to_handle = message_queue[0:n]
             del message_queue[0:n]
             last_time = time.time();
@@ -502,4 +502,4 @@ while True:
             if len(active_tasks) <= MAX_WORKERS:
                 active_tasks.append(thread_pool.submit(handle_message, message))
             else:
-                print(f'ATTENTION : le nombre de tâches actives ({len(active_tasks)}) dépasse le nombre de "MAX_WORKERS" ({MAX_WORKERS}). ({len(message_queue)} messages dans la file).')
+                print(f'WARNING: active tasks ({len(active_tasks)}) exceeds number of "MAX_WORKERS" ({MAX_WORKERS}). ({len(message_queue)} messages in the queue).')
